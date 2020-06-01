@@ -46,7 +46,7 @@ class Heavy_basicTest : public HeavyContext {
   ~Heavy_basicTest();
 
   const char *getName() override { return "basicTest"; }
-  int getNumInputChannels() override { return 0; }
+  int getNumInputChannels() override { return 2; }
   int getNumOutputChannels() override { return 2; }
 
   int process(float **inputBuffers, float **outputBuffer, int n) override;
@@ -67,10 +67,10 @@ class Heavy_basicTest : public HeavyContext {
   void scheduleMessageForReceiver(hv_uint32_t receiverHash, HvMessage *m) override;
 
   // static sendMessage functions
-  static void cReceive_fg1t2rOA_sendMessage(HeavyContextInterface *, int, const HvMessage *);
+  static void cReceive_GtXr4Rxe_sendMessage(HeavyContextInterface *, int, const HvMessage *);
 
   // objects
-  SignalPhasor sPhasor_N3baBd4F;
+  SignalPhasor sPhasor_DNnvZq58;
 };
 
 #endif // _HEAVY_CONTEXT_BASICTEST_HPP_

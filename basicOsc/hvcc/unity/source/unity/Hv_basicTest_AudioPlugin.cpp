@@ -53,7 +53,7 @@ namespace Hv_basicTest_UnityPlugin {
     int numparams = P_NUM_HV_PARAMS_;
     definition.paramdefs = new UnityAudioParameterDefinition[numparams];
     // channels will be set to 0 if numInputChannels > 0 else it will be set to numOutputChannels
-    definition.channels = 2;
+    definition.channels = 0;
     RegisterParameter(definition, "freq", "", 400.0f, 800.0f, 400.0f, 1.0f, 1.0f, P_FREQ, "freq");
     return numparams;
   }

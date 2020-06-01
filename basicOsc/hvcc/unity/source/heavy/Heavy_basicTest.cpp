@@ -63,7 +63,7 @@ extern "C" {
 
 Heavy_basicTest::Heavy_basicTest(double sampleRate, int poolKb, int inQueueKb, int outQueueKb)
     : HeavyContext(sampleRate, poolKb, inQueueKb, outQueueKb) {
-  numBytes += sPhasor_k_init(&sPhasor_N3baBd4F, 0.0f, sampleRate);
+  numBytes += sPhasor_k_init(&sPhasor_DNnvZq58, 0.0f, sampleRate);
   
 }
 
@@ -78,7 +78,7 @@ HvTable *Heavy_basicTest::getTableForHash(hv_uint32_t tableHash) {
 void Heavy_basicTest::scheduleMessageForReceiver(hv_uint32_t receiverHash, HvMessage *m) {
   switch (receiverHash) {
     case 0x345FC008: { // freq
-      mq_addMessageByTimestamp(&mq, m, 0, &cReceive_fg1t2rOA_sendMessage);
+      mq_addMessageByTimestamp(&mq, m, 0, &cReceive_GtXr4Rxe_sendMessage);
       break;
     }
     default: return;
@@ -118,8 +118,8 @@ int Heavy_basicTest::getParameterInfo(int index, HvParameterInfo *info) {
  */
 
 
-void Heavy_basicTest::cReceive_fg1t2rOA_sendMessage(HeavyContextInterface *_c, int letIn, const HvMessage *m) {
-  sPhasor_k_onMessage(_c, &Context(_c)->sPhasor_N3baBd4F, 0, m);
+void Heavy_basicTest::cReceive_GtXr4Rxe_sendMessage(HeavyContextInterface *_c, int letIn, const HvMessage *m) {
+  sPhasor_k_onMessage(_c, &Context(_c)->sPhasor_DNnvZq58, 0, m);
 }
 
 
@@ -144,6 +144,7 @@ int Heavy_basicTest::process(float **inputBuffers, float **outputBuffers, int n)
 
   // input and output vars
   hv_bufferf_t O0, O1;
+  hv_bufferf_t I0, I1;
 
   // declare and init the zero buffer
   hv_bufferf_t ZERO; __hv_zero_f(VOf(ZERO));
@@ -159,14 +160,16 @@ int Heavy_basicTest::process(float **inputBuffers, float **outputBuffers, int n)
       mq_pop(&mq);
     }
 
-    
+    // load input buffers
+    __hv_load_f(inputBuffers[0]+n, VOf(I0));
+    __hv_load_f(inputBuffers[1]+n, VOf(I1));
 
     // zero output buffers
     __hv_zero_f(VOf(O0));
     __hv_zero_f(VOf(O1));
 
     // process all signal functions
-    __hv_phasor_k_f(&sPhasor_N3baBd4F, VOf(Bf0));
+    __hv_phasor_k_f(&sPhasor_DNnvZq58, VOf(Bf0));
     __hv_var_k_f(VOf(Bf1), 0.5f, 0.5f, 0.5f, 0.5f, 0.5f, 0.5f, 0.5f, 0.5f);
     __hv_sub_f(VIf(Bf0), VIf(Bf1), VOf(Bf1));
     __hv_abs_f(VIf(Bf1), VOf(Bf1));
@@ -181,8 +184,10 @@ int Heavy_basicTest::process(float **inputBuffers, float **outputBuffers, int n)
     __hv_var_k_f(VOf(Bf4), -0.166666666667f, -0.166666666667f, -0.166666666667f, -0.166666666667f, -0.166666666667f, -0.166666666667f, -0.166666666667f, -0.166666666667f);
     __hv_fma_f(VIf(Bf2), VIf(Bf4), VIf(Bf1), VOf(Bf1));
     __hv_fma_f(VIf(Bf0), VIf(Bf3), VIf(Bf1), VOf(Bf1));
+    __hv_add_f(VIf(Bf1), VIf(I1), VOf(Bf3));
+    __hv_add_f(VIf(Bf3), VIf(O1), VOf(O1));
+    __hv_add_f(VIf(Bf1), VIf(I0), VOf(Bf1));
     __hv_add_f(VIf(Bf1), VIf(O0), VOf(O0));
-    __hv_add_f(VIf(Bf1), VIf(O1), VOf(O1));
 
     // save output vars to output buffer
     __hv_store_f(outputBuffers[0]+n, VIf(O0));
@@ -197,8 +202,10 @@ int Heavy_basicTest::process(float **inputBuffers, float **outputBuffers, int n)
 int Heavy_basicTest::processInline(float *inputBuffers, float *outputBuffers, int n4) {
   hv_assert(!(n4 & HV_N_SIMD_MASK)); // ensure that n4 is a multiple of HV_N_SIMD
 
-  // define the heavy input buffer for 0 channel(s)
-  float **const bIn = NULL;
+  // define the heavy input buffer for 2 channel(s)
+  float **const bIn = reinterpret_cast<float **>(hv_alloca(2*sizeof(float *)));
+  bIn[0] = inputBuffers+(0*n4);
+  bIn[1] = inputBuffers+(1*n4);
 
   // define the heavy output buffer for 2 channel(s)
   float **const bOut = reinterpret_cast<float **>(hv_alloca(2*sizeof(float *)));
@@ -212,8 +219,29 @@ int Heavy_basicTest::processInline(float *inputBuffers, float *outputBuffers, in
 int Heavy_basicTest::processInlineInterleaved(float *inputBuffers, float *outputBuffers, int n4) {
   hv_assert(n4 & ~HV_N_SIMD_MASK); // ensure that n4 is a multiple of HV_N_SIMD
 
-  // define the heavy input buffer for 0 channel(s), uninterleave
-  float *const bIn = NULL;
+  // define the heavy input buffer for 2 channel(s), uninterleave
+  float *const bIn = reinterpret_cast<float *>(hv_alloca(2*n4*sizeof(float)));
+  #if HV_SIMD_SSE || HV_SIMD_AVX
+  for (int i = 0, j = 0; j < n4; j += 4, i += 8) {
+    __m128 a = _mm_load_ps(inputBuffers+i);                // LRLR
+    __m128 b = _mm_load_ps(inputBuffers+4+i);              // LRLR
+    __m128 x = _mm_shuffle_ps(a, b, _MM_SHUFFLE(2,0,2,0)); // LLLL
+    __m128 y = _mm_shuffle_ps(a, b, _MM_SHUFFLE(3,1,3,1)); // RRRR
+    _mm_store_ps(bIn+j, x);
+    _mm_store_ps(bIn+n4+j, y);
+  }
+  #elif HV_SIMD_NEON
+  for (int i = 0, j = 0; j < n4; j += 4, i += 8) {
+    float32x4x2_t a = vld2q_f32(inputBuffers+i); // load and uninterleave
+    vst1q_f32(bIn+j, a.val[0]);
+    vst1q_f32(bIn+n4+j, a.val[1]);
+  }
+  #else // HV_SIMD_NONE
+  for (int j = 0; j < n4; ++j) {
+    bIn[0*n4+j] = inputBuffers[0+2*j];
+    bIn[1*n4+j] = inputBuffers[1+2*j];
+  }
+  #endif
 
   // define the heavy output buffer for 2 channel(s)
   float *const bOut = reinterpret_cast<float *>(hv_alloca(2*n4*sizeof(float)));
