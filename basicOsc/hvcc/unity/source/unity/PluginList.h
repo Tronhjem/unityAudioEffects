@@ -1,0 +1,1 @@
+DECLARE_EFFECT("basicTest", Hv_basicTest_UnityPlugin)
